@@ -1,0 +1,12 @@
+import {mkdir,readFile,writeFile,copyFile,rm} from 'node:fs/promises';
+import {build} from 'esbuild';
+await rm('public',{recursive:true,force:true});await mkdir('public/photo',{recursive:true});
+await copyFile('src/page.html','public/index.html');
+await copyFile('assets/gmi-logo.png','public/gmi-logo.png');
+for(const [i,n] of ['8746','8408','8937','9105','9120'].entries())await copyFile(`photos/20251214-IMG_${n}.jpg`,`public/photo/${i}.jpg`);
+await build({entryPoints:['src/app.js'],bundle:true,minify:true,format:'esm',platform:'browser',target:['es2022'],outfile:'public/app.js'});
+const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//GMI//Choir Festival//KO','BEGIN:VEVENT','UID:gmi-choir-38-2026@gracemi.com','DTSTAMP:20261125T000000Z','DTSTART:20261213T220000Z','SUMMARY:제38회 은혜성가제','LOCATION:은혜한인교회 비전센터 본당','DESCRIPTION:28개 그룹과 EM\, GMI 은혜교회 참가','END:VEVENT','END:VCALENDAR',''];
+await writeFile('public/festival.ics',ics.join('\r\n'));
+await writeFile('public/robots.txt','User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n');
+await writeFile('public/favicon.svg','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0c1729"/><text x="32" y="44" text-anchor="middle" font-size="35" fill="#e9c17d">38</text></svg>');
+console.log('Built website: 5 original photos, 30 groups, 1 full video, 5 Shorts.');

@@ -1,0 +1,24 @@
+{
+  "name": "38th-grace-choir-contest",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "제38회 은혜성가제 · 38th Grace Choir Contest",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.js",
+    "dev": "node scripts/dev.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.9.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "overrides": {
+    "zod": "^4.6.6"
+  }
+}
