@@ -1,8 +1,7 @@
-import {handleUpload} from '@vercel/blob/client';
 import {setTimeout as delay} from 'node:timers/promises';
-import {slots,getSlot,fields,youtube,requireValue,publicSlots,validateVideoPath,MAX_UPLOAD} from '../lib/festival.js';
+import {getSlot,fields,youtube,requireValue,publicSlots} from '../lib/festival.js';
 import {configured,correctPassword,owner,sameOrigin,sessionCookie,logoutCookie} from '../lib/auth.js';
-import {readCatalog,writeSlot,resolveVideo,storageReady} from '../lib/store.js';
+import {readCatalog,writeSlot,storageReady} from '../lib/store.js';
 const attempts=new Map();
 async function bodyOf(request){
   if(request.body && typeof request.body==='object')return request.body;
@@ -37,17 +36,6 @@ export default async function handler(request,response){
       }
       attempts.delete(ip);response.setHeader('Set-Cookie',sessionCookie());return send(response,200,{ok:true});
     }
-    if(action==='upload'&&method==='POST'){
-      const body=await bodyOf(request);
-      // The SDK verifies upload callbacks; only signed-in owners receive upload tokens.
-      const result=await handleUpload({body,request,onBeforeGenerateToken:async(path)=>{
-        sameOrigin(request);requireValue(owner(request),'관리자 로그인이 필요합니다.',401);
-        const slot=path.split('/')[1];validateVideoPath(path,slot);
-        return {allowedContentTypes:['video/mp4','video/webm'],maximumSizeInBytes:MAX_UPLOAD,
-          addRandomSuffix:false,allowOverwrite:false,validUntil:Date.now()+24*60*60*1000};
-      }});
-      return send(response,200,result);
-    }
     sameOrigin(request);requireValue(owner(request),'관리자 로그인이 필요합니다.',401);
     if(action==='logout'&&method==='POST'){
       response.setHeader('Set-Cookie',logoutCookie());return send(response,200,{ok:true});
@@ -59,8 +47,8 @@ export default async function handler(request,response){
     if(method==='DELETE')value={name:prior?.name||slot.name,song:prior?.song||''};
     else{
       const entry=fields(input);
-      if(input.pathname)value={...entry,file:await resolveVideo(input.pathname,id)};
-      else if(input.keep)value={...prior,...entry};
+      requireValue(!('pathname' in input) && !('file' in input),'유튜브 링크만 등록할 수 있습니다.');
+      if(input.keep)value={...entry,...(prior?.youtube?{youtube:prior.youtube}:{})};
       else{const video=youtube(input.url);requireValue(video,'올바른 YouTube 영상 주소를 입력해 주세요.');value={...entry,youtube:video};}
     }
     await writeSlot(id,value,input.revision);return send(response,200,{ok:true});

@@ -1,4 +1,4 @@
-# 38th Grace Choir Contest
+# 38th Grace Choir Contest — YouTube 링크 전용
 
 제38회 은혜성가제 홈페이지입니다.
 
@@ -6,12 +6,60 @@
 - 장소: 은혜한인교회 비전센터 본당
 - 주소: 150 S. Brookhurst Rd., Fullerton, CA 92833
 - 참가: 28개 그룹 + EM + GMI 은혜교회 (총 30팀)
-- 30개 참가팀 영상, 전체 영상 1개, Shorts 5개
-- 원본 사진 5장, 모바일/데스크톱 반응형 화면
+- **참가팀 영상 30개 + 전체 영상 1개 + YouTube Shorts 5개 — 모두 유튜브 링크로 등록**
+- 원본 사진 5장, 왼쪽 상단·하단 교회 로고, 모바일/데스크톱 반응형 화면
 
-## 실행과 배포
+## 유튜브 영상 등록 방법
 
-Node.js 22 이상을 사용합니다.
+관리자 설정을 완료한 후 다음 순서로 등록합니다.
+
+1. 홈페이지 하단 **영상 관리** 또는 `/admin`으로 이동하고 관리자 비밀번호로 로그인합니다.
+2. 영상 항목에서 참가팀, 성가제 전체 영상 또는 Shorts를 선택합니다.
+3. 참가팀 이름/영상 제목과 찬양곡/설명을 입력합니다.
+4. **유튜브 링크**에 영상 주소를 붙여넣고 **유튜브 링크 저장**을 누릅니다.
+5. 홈페이지에서 등록한 영상이 재생됩니다. **링크 등록 해제**는 이 홈페이지에서 링크 연결만 해제합니다.
+
+지원되는 주소 형식:
+
+- `https://www.youtube.com/watch?v=영상ID`
+- `https://youtu.be/영상ID`
+- `https://www.youtube.com/shorts/영상ID`
+- `https://www.youtube.com/live/영상ID`
+- 공유 주소 뒤의 `?si=...`, `&t=...` 같은 추가 매개변수도 처리합니다.
+
+영상 자체는 유튜브에서 재생됩니다. 파일을 홈페이지에 직접 업로드하는 기능은 없습니다. 유튜브에서 공개 또는 일부 공개로 설정하고, 외부 사이트 재생을 허용해 주세요. 재생이 제한된 영상은 플레이어 아래 **YouTube에서 보기**로 이동할 수 있습니다.
+
+아직 영상이 없는 항목은 **영상 준비 중**으로 표시됩니다. 링크를 등록하지 않은 항목은 이름·설명만 먼저 저장할 수 있습니다.
+
+## GitHub와 Vercel 배포
+
+압축을 풀고 내용물 전체를 GitHub 저장소 최상위에 올리세요. `package.json`과 `vercel.json`이 최상위에 있어야 합니다. GitHub 저장소의 main 브랜치를 Vercel 프로젝트와 연결합니다.
+
+- Framework: **Other**
+- Install Command: `npm ci`
+- Build Command: `npm run build`
+- Output Directory: `public`
+- Node.js: 22 이상
+
+빌드/출력 설정은 `vercel.json`에 포함되어 있습니다. main 브랜치에 변경사항을 올리면 연결된 Vercel 프로젝트에서 자동 배포됩니다.
+
+## 관리자와 링크 저장 설정
+
+관리 화면에서 저장한 링크가 다른 방문자에게도 보이도록 **Vercel Blob**에 작은 JSON 목록을 저장합니다. Blob에는 유튜브 링크, 참가팀 이름, 찬양곡/설명만 저장하며 영상 파일은 저장하지 않습니다.
+
+1. Vercel 프로젝트의 Storage에서 **public Blob store**를 생성하거나 연결합니다.
+2. 연결한 저장소의 `BLOB_READ_WRITE_TOKEN`을 프로젝트의 **Production** 환경 변수에 설정합니다. 연결 과정에서 자동 추가되면 해당 값을 그대로 사용합니다.
+3. 프로젝트 Settings → Environment Variables에 다음 두 값을 추가합니다.
+   - `ADMIN_PASSWORD`: 직접 정한 관리자 비밀번호, 최소 20자
+   - `SESSION_SECRET`: 충분히 긴 임의의 문자열, 최소 32자
+4. 환경 변수를 저장한 뒤 **Redeploy**합니다.
+5. `/admin`에서 설정한 비밀번호로 로그인합니다.
+
+실제 비밀번호와 토큰을 GitHub 파일이나 `.env.example`에 넣지 마세요. Vercel 저장소 이용량은 해당 계정 요금제와 한도를 따릅니다.
+
+링크 목록은 Blob의 `metadata/festival.json`에 저장되고 ETag 조건부 쓰기로 동시 수정 충돌을 감지합니다. 관리자 쿠키는 HttpOnly, Secure, SameSite=Strict이며 12시간 후 만료됩니다. 변경 요청은 같은 출처와 관리자 세션을 검증합니다. 비밀번호와 세션키를 모두 교체해 재배포하면 기존 세션을 해제할 수 있습니다.
+
+## 로컬 실행
 
 ```sh
 npm ci
@@ -20,31 +68,16 @@ npm run build
 npm run dev
 ```
 
-GitHub 저장소의 main 브랜치를 Vercel 프로젝트와 연결합니다. Framework는 Other이며 빌드/출력 설정은 vercel.json에 포함되어 있습니다. main에 변경사항을 올리면 Vercel에서 자동 배포합니다.
-
-## 관리자와 영상 저장소
-
-Vercel에 **public Vercel Blob store**를 연결하고 아래 값을 Production 환경 변수로 설정합니다. 실제 비밀값은 저장소에 올리지 않습니다.
-
-- BLOB_READ_WRITE_TOKEN: 연결한 Blob 저장소의 쓰기 토큰. 클라이언트 업로드 SDK에서 필요합니다.
-- ADMIN_PASSWORD: 관리자 비밀번호 (최소 20자)
-- SESSION_SECRET: 임의의 세션 서명키 (최소 32자)
-
-홈페이지 하단 **영상 관리** 또는 `/admin`에서 로그인합니다. 항목을 선택하고 YouTube 주소(Shorts 포함)를 입력하거나 MP4/WebM 파일을 업로드합니다. 이름/찬양곡 수정, 영상 등록 해제를 지원합니다. 파일 업로드는 최대 10GiB이고 실제 이용 가능 용량과 트래픽은 Vercel 요금제 및 Blob 한도를 따릅니다. 긴 전체 영상은 YouTube 일부 공개 영상 링크로 등록할 수 있습니다.
-
-영상 파일은 브라우저에서 Blob에 직접 전송됩니다. Vercel Function의 업로드 본문 크기 제한을 거치지 않습니다. 홈페이지 메타데이터는 Blob의 `metadata/festival.json`에 저장되며 ETag 조건부 쓰기로 동시 수정 충돌을 감지합니다. public 저장소에는 게시용 영상과 공개 제목/설명만 저장합니다.
-
-관리자 쿠키는 HttpOnly, Secure, SameSite=Strict이고 12시간 후 만료됩니다. 변경 요청은 같은 출처와 관리자 세션을 검증합니다. 비밀번호와 세션키를 모두 교체해 재배포하면 기존 세션을 해제할 수 있습니다. 로그인 시도 제한은 함수 인스턴스별 보조 제한입니다. 강한 비밀번호를 사용하세요.
-
-업로드 도중 브라우저를 닫으면 등록되지 않은 파일이 저장소에 남을 수 있습니다. 사용하지 않는 파일은 Vercel Storage에서 정리할 수 있습니다. 영상 삭제가 실패할 때 공개 목록에서의 해제는 유지되고 서버에 정리 실패가 기록됩니다.
+설정되지 않은 로컬 환경에서는 화면과 사진을 확인할 수 있으며, 관리자 로그인 및 링크 저장은 위 환경 변수 설정 후 사용할 수 있습니다.
 
 ## 수정 위치
 
 - `src/page.html`: 디자인, 행사 안내, 메뉴, 사진 설명
-- `src/app.js`: 갤러리, 영상 목록, 관리자 화면
-- `lib/festival.js`: 36개 영상 슬롯과 입력 검증
-- `lib/store.js`: Blob 메타데이터와 영상 저장
-- `api/router.js`: 관리자 인증 및 API
+- `src/app.js`: 갤러리, 유튜브 재생, 영상 목록, 관리자 화면
+- `lib/festival.js`: 36개 영상 항목과 유튜브 주소 검증
+- `lib/store.js`: 링크 목록 저장
+- `api/router.js`: 관리자 인증 및 링크 등록 API
 - `photos/`: 사용자가 제공한 2025년 제37회 성가제 원본 사진 5장
+- `assets/gmi-logo.png`: 사용자가 제공한 교회 로고 원본
 
-현재 배포는 기존 ChatGPT Sites의 R2 저장소와 별개입니다. 이전 사이트에 이미 등록한 영상이 있다면 게시 전에 목록과 파일을 옮겨야 합니다.
+이 Vercel용 파일의 링크 목록은 기존 ChatGPT 사이트와 별개입니다. 기존 사이트에 등록한 유튜브 주소가 있으면 새 사이트에서 다시 등록해 주세요.

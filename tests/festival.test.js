@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {slots,youtube,fields,publicSlots,validateVideoPath} from '../lib/festival.js';
+import {slots,youtube,fields,publicSlots} from '../lib/festival.js';
 import {configured,correctPassword,sessionCookie,owner,sameOrigin} from '../lib/auth.js';
 import handler from '../api/router.js';
 const env={ADMIN_PASSWORD:'test-only-long-password-abc123',SESSION_SECRET:'test-only-session-signing-key-abcdefghijklmnopqrstuvwxyz'};
@@ -11,18 +11,14 @@ test('30 participants, one full video, five Shorts and unique IDs',()=>{
   assert.equal(slots.filter(s=>s.kind==='full').length,1);assert.equal(slots.filter(s=>s.kind==='short').length,5);
 });
 test('YouTube link formats supported without accepting lookalike domains',()=>{
-  for(const link of ['https://youtu.be/abcdefghijk','https://www.youtube.com/watch?v=abcdefghijk&t=5','https://youtube.com/shorts/abcdefghijk','https://youtube.com/live/abcdefghijk'])assert.equal(youtube(link),'abcdefghijk');
+  for(const link of ['https://youtu.be/abcdefghijk','https://www.youtube.com/watch?v=abcdefghijk&t=5','https://youtube.com/shorts/abcdefghijk','https://youtube.com/live/abcdefghijk','https://m.youtube.com/watch?v=abcdefghijk','https://www.youtube-nocookie.com/embed/abcdefghijk','https://youtube.com/shorts/abcdefghijk?si=share'])assert.equal(youtube(link),'abcdefghijk');
   for(const link of ['javascript:alert(1)','https://youtube.com.evil.example/watch?v=abcdefghijk','https://notyoutube.com/shorts/abcdefghijk','not a url','https://youtu.be/short'])assert.equal(youtube(link),null);
-});
-test('Uploaded video path stays within the selected slot',()=>{
-  const path='videos/g1/12345678-1234-1234-1234-123456789012.mp4';assert.equal(validateVideoPath(path,'g1'),path);
-  for(const bad of ['https://evil.example/file.mp4','videos/g2/12345678-1234-1234-1234-123456789012.mp4','metadata/festival.json','videos/g1/../../metadata/festival.json'])assert.throws(()=>validateVideoPath(bad,'g1'));
 });
 test('metadata fields are bounded and internal storage details are not exposed',()=>{
   assert.deepEqual(fields({name:' EM ',song:' 찬양 '}),{name:'EM',song:'찬양'});
   assert.throws(()=>fields({name:' '}));assert.throws(()=>fields({name:'x'.repeat(81)}));
   const list=publicSlots({records:{g1:{name:'G1',file:{pathname:'videos/g1/a',url:'https://example.test/v.mp4'}}}});
-  assert.equal(list[0].file,true);assert.equal(list[0].videoUrl,'https://example.test/v.mp4');assert.equal(list[0].pathname,undefined);
+  assert.equal(list[0].file,undefined);assert.equal(list[0].videoUrl,undefined);assert.equal(list[0].pathname,undefined);
 });
 test('admin authentication fails closed, signs sessions, rejects tampering and expires',()=>{
   assert.equal(configured({}),false);assert.equal(correctPassword(env.ADMIN_PASSWORD,env),true);assert.equal(correctPassword('wrong',env),false);

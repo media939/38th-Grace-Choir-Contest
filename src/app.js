@@ -1,4 +1,3 @@
-import { upload } from '@vercel/blob/client';
 import { slots as defaultSlots } from '../lib/festival.js';
 const $ = id => document.getElementById(id);
 let slots = defaultSlots, expanded = false;
@@ -10,11 +9,10 @@ const create = (tag, cls, text) => {
   return el;
 };
 async function api(path, method = 'GET', data) {
-  const binary = data instanceof Blob;
   const response = await fetch(path, {
     method,
-    headers: data && !binary ? {'Content-Type':'application/json'} : {},
-    body: data ? (binary ? data : JSON.stringify(data)) : undefined
+    headers: data ? {'Content-Type':'application/json'} : {},
+    body: data ? JSON.stringify(data) : undefined
   });
   if (response.redirected) throw Error('사이트 소유자 계정으로 다시 로그인해 주세요.');
   const result = await response.json();
@@ -41,15 +39,10 @@ function play(slot) {
     link.target = '_blank'; link.rel = 'noopener';
     panel.append(frame, link);
     view(panel, slot.kind === 'short');
-  } else {
-    const video = create('video');
-    video.src = slot.videoUrl;
-    video.controls = true; video.autoplay = true; video.playsInline = true;
-    view(video, slot.kind === 'short');
   }
 }
 function card(slot) {
-  const ready = slot.youtube || slot.file;
+  const ready = slot.youtube;
   const el = create(ready ? 'button' : 'article', 'card');
   el.append(create('span','cover',ready?'▶':'♫'));
   const copy = create('span','copy');
@@ -61,7 +54,7 @@ function card(slot) {
 function render() {
   const filter = $('filter').value, query = $('search').value.trim().toLowerCase();
   const groups = slots.filter(s => s.kind !== 'full' && s.kind !== 'short'
-    && (!filter || s.kind === filter || (filter === 'ready' && (s.youtube || s.file)))
+    && (!filter || s.kind === filter || (filter === 'ready' && (s.youtube)))
     && (s.name + ' ' + s.song).toLowerCase().includes(query));
   const compact = !filter && !query;
   $('group-grid').replaceChildren(...(expanded || !compact ? groups : groups.slice(0,8)).map(card));
@@ -71,8 +64,8 @@ function render() {
   $('short-grid').replaceChildren(...slots.filter(s=>s.kind==='short').map(card));
   const full = slots.find(s=>s.kind==='full');
   $('full-name').textContent = full.name;
-  $('full-state').textContent = full.song || (full.youtube || full.file ? '전체 공연 다시보기' : '영상 준비 중');
-  $('full-play').hidden = !full.youtube && !full.file;
+  $('full-state').textContent = full.song || (full.youtube ? '전체 공연 다시보기' : '영상 준비 중');
+  $('full-play').hidden = !full.youtube;
   $('full-play').onclick = () => play(full);
 }
 function fillEditor() {
@@ -80,8 +73,7 @@ function fillEditor() {
   $('name').value = slot.name;
   $('song').value = slot.song;
   $('url').value = slot.youtube ? 'https://www.youtube.com/watch?v=' + slot.youtube : '';
-  $('file').value = '';
-  $('remove').disabled = !slot.youtube && !slot.file;
+  $('remove').disabled = !slot.youtube;
 }
 async function refreshEditor(selected) {
   slots = await api('/api/videos');
@@ -90,7 +82,7 @@ async function refreshEditor(selected) {
   for (const [title, kinds] of [['참가팀 영상 · 30개',['group','em','gmi']],['전체 영상 · 1개',['full']],['Shorts · 5개',['short']]]) {
     const group = create('optgroup'); group.label = title;
     for (const s of slots.filter(s=>kinds.includes(s.kind))) {
-      const option = create('option','',s.name + (s.youtube || s.file ? ' · 등록 완료' : ' · 미등록'));
+      const option = create('option','',s.name + (s.youtube ? ' · 등록 완료' : ' · 미등록'));
       option.value = s.id; group.append(option);
     }
     select.append(group);
@@ -99,50 +91,34 @@ async function refreshEditor(selected) {
   fillEditor();
 }
 function busy(active) {
-  for (const id of ['slot','name','song','url','file']) $(id).disabled = active;
+  for (const id of ['slot','name','song','url']) $(id).disabled = active;
   $('editor').querySelector('[type=submit]').disabled = active;
   const slot = slots.find(s=>s.id===$('slot').value);
-  $('remove').disabled = active || !slot || (!slot.youtube && !slot.file);
+  $('remove').disabled = active || !slot || (!slot.youtube);
 }
 $('editor').onsubmit = async event => {
   event.preventDefault();
   const id = $('slot').value;
-  const file = $('file').files[0];
   const current = slots.find(s=>s.id===id);
-  const fields = {name:$('name').value,song:$('song').value,url:$('url').value,revision:current.revision};
-  let uploaded;
+  const fields = {name:$('name').value,song:$('song').value,url:$('url').value.trim(),revision:current.revision};
   busy(true);
-  $('save-state').textContent = '저장하고 있습니다.';
+  $('save-state').textContent = '유튜브 링크를 저장하고 있습니다.';
   try {
-    if (!file) {
-      const current = slots.find(s=>s.id===id);
-      await api('/api/slot/' + id, 'PUT', {...fields,keep:!fields.url && !current.youtube});
-    } else {
-      const type = file.type || (file.name.toLowerCase().endsWith('.mp4') ? 'video/mp4' : 'video/webm');
-      if (!['video/mp4','video/webm'].includes(type) || file.size > 10 * 1024 ** 3 || file.size === 0) throw Error('10GB 이하의 MP4 또는 WebM 영상을 선택해 주세요.');
-      $('progress').hidden = false; $('progress').value = 0;
-      const extension = type === 'video/mp4' ? 'mp4' : 'webm';
-      uploaded = await upload('videos/' + id + '/' + crypto.randomUUID() + '.' + extension, file, {
-        access:'public',handleUploadUrl:'/api/upload',multipart:true,contentType:type,
-        onUploadProgress:({percentage}) => { $('progress').value = percentage; $('save-state').textContent = '영상 업로드 중 · ' + Math.round(percentage) + '%'; }
-      });
-      await api('/api/slot/' + id, 'PUT', {...fields,pathname:uploaded.pathname});
-    }
+    await api('/api/slot/' + id, 'PUT', {...fields,keep:!fields.url && !current.youtube});
     await refreshEditor(id);
     $('save-state').textContent = '저장했습니다. 사이트에 반영되었습니다.';
   } catch (error) {
-
     $('save-state').textContent = error.message;
-  } finally { busy(false); $('progress').hidden = true; }
+  } finally { busy(false); }
 };
 $('remove').onclick = async () => {
-  if (!confirm('이 항목의 영상 등록을 해제하시겠습니까? 업로드한 파일은 삭제됩니다.')) return;
+  if (!confirm('이 항목의 유튜브 링크 등록을 해제하시겠습니까?')) return;
   const id = $('slot').value;
   busy(true);
   try {
     await api('/api/slot/' + id,'DELETE',{revision:slots.find(s=>s.id===id).revision});
     await refreshEditor(id);
-    $('save-state').textContent = '영상 등록을 해제했습니다.';
+    $('save-state').textContent = '유튜브 링크 등록을 해제했습니다.';
   } catch (error) { $('save-state').textContent = error.message; }
   finally { busy(false); }
 };
@@ -159,7 +135,7 @@ async function start() {
       $('login-form').hidden = true;
       await refreshEditor();
       $('editor').hidden = false;
-      $('admin-state').textContent = '참가팀 영상 30개 · 전체 영상 1개 · Shorts 5개';
+      $('admin-state').textContent = '참가팀 영상 30개 · 전체 영상 1개 · Shorts 5개 — 모두 유튜브 링크로 등록합니다.';
       $('slot').onchange = () => {fillEditor(); $('save-state').textContent='';};
     } catch (error) { $('admin-state').textContent = '관리 화면을 불러오지 못했습니다. 다시 접속해 주세요.'; }
     return;
