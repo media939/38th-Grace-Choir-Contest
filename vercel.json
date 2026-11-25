@@ -5,15 +5,49 @@
   "installCommand": "npm ci",
   "outputDirectory": "public",
   "rewrites": [
-    {"source": "/admin", "destination": "/index.html"},
-    {"source": "/api/:path*", "destination": "/api/router?path=:path*"}
+    {
+      "source": "/api/:path*",
+      "destination": "/api/router"
+    }
   ],
   "headers": [
-    {"source": "/(.*)", "headers": [
-      {"key": "X-Content-Type-Options", "value": "nosniff"},
-      {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
-      {"key": "X-Frame-Options", "value": "SAMEORIGIN"}
-    ]},
-    {"source": "/admin", "headers": [{"key": "X-Robots-Tag", "value": "noindex, nofollow"}]}
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
+    },
+    {
+      "source": "/videos.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/admin",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/",
+      "permanent": false
+    }
   ]
 }

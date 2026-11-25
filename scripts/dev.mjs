@@ -1,15 +1,23 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
-import handler from '../api/router.js';
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml','.ics':'text/calendar'};
+import retired from '../api/router.js';
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml','.ics':'text/calendar'};
 const root=resolve('public');
-createServer(async(req,res)=>{
-  if(req.url.startsWith('/api/'))return handler(req,res);
+const server=createServer(async(req,res)=>{
+  const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/admin'||pathname.startsWith('/admin/')){
+    res.writeHead(307,{Location:'/'});return res.end();
+  }
+  if(pathname==='/api'||pathname.startsWith('/api/'))return retired(req,res);
   try{
-    const pathname=new URL(req.url,'http://localhost').pathname;
-    const file=resolve(root,'.'+(pathname==='/'||pathname==='/admin'?'/index.html':pathname));
+    const file=resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
     if(!file.startsWith(root+'/'))throw Error('outside root');
-    const body=await readFile(file);res.setHeader('Content-Type',types[extname(file)]||'text/plain');res.end(body);
+    const body=await readFile(file);
+    res.setHeader('Content-Type',types[extname(file)]||'text/plain');
+    res.setHeader('Cache-Control','no-cache');res.end(body);
   }catch{res.statusCode=404;res.end('Not found');}
-}).listen(Number(process.argv[process.argv.indexOf('--port')+1]) || Number(process.env.PORT) || 3000,'0.0.0.0',()=>console.log('Preview server ready'));
+});
+const index=process.argv.indexOf('--port');
+const port=index>=0?Number(process.argv[index+1]):Number(process.env.PORT)||3000;
+server.listen(port,'0.0.0.0',()=>console.log('Preview server ready'));

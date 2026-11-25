@@ -1,24 +1,12 @@
-import { slots as defaultSlots } from '../lib/festival.js';
+import { slots as defaultSlots, parseVideos } from './festival.js';
 const $ = id => document.getElementById(id);
 let slots = defaultSlots, expanded = false;
-const admin = location.pathname.replace(/\/$/, '') === '/admin';
 const create = (tag, cls, text) => {
   const el = document.createElement(tag);
   if (cls) el.className = cls;
   if (text) el.textContent = text;
   return el;
 };
-async function api(path, method = 'GET', data) {
-  const response = await fetch(path, {
-    method,
-    headers: data ? {'Content-Type':'application/json'} : {},
-    body: data ? JSON.stringify(data) : undefined
-  });
-  if (response.redirected) throw Error('사이트 소유자 계정으로 다시 로그인해 주세요.');
-  const result = await response.json();
-  if (!response.ok) throw Error(result.error);
-  return result;
-}
 function view(el, vertical) {
   $('media').replaceChildren(el);
   $('viewer').classList.toggle('short', !!vertical);
@@ -68,78 +56,7 @@ function render() {
   $('full-play').hidden = !full.youtube;
   $('full-play').onclick = () => play(full);
 }
-function fillEditor() {
-  const slot = slots.find(s=>s.id===$('slot').value);
-  $('name').value = slot.name;
-  $('song').value = slot.song;
-  $('url').value = slot.youtube ? 'https://www.youtube.com/watch?v=' + slot.youtube : '';
-  $('remove').disabled = !slot.youtube;
-}
-async function refreshEditor(selected) {
-  slots = await api('/api/videos');
-  const select = $('slot');
-  select.replaceChildren();
-  for (const [title, kinds] of [['참가팀 영상 · 30개',['group','em','gmi']],['전체 영상 · 1개',['full']],['Shorts · 5개',['short']]]) {
-    const group = create('optgroup'); group.label = title;
-    for (const s of slots.filter(s=>kinds.includes(s.kind))) {
-      const option = create('option','',s.name + (s.youtube ? ' · 등록 완료' : ' · 미등록'));
-      option.value = s.id; group.append(option);
-    }
-    select.append(group);
-  }
-  if (selected) select.value = selected;
-  fillEditor();
-}
-function busy(active) {
-  for (const id of ['slot','name','song','url']) $(id).disabled = active;
-  $('editor').querySelector('[type=submit]').disabled = active;
-  const slot = slots.find(s=>s.id===$('slot').value);
-  $('remove').disabled = active || !slot || (!slot.youtube);
-}
-$('editor').onsubmit = async event => {
-  event.preventDefault();
-  const id = $('slot').value;
-  const current = slots.find(s=>s.id===id);
-  const fields = {name:$('name').value,song:$('song').value,url:$('url').value.trim(),revision:current.revision};
-  busy(true);
-  $('save-state').textContent = '유튜브 링크를 저장하고 있습니다.';
-  try {
-    await api('/api/slot/' + id, 'PUT', {...fields,keep:!fields.url && !current.youtube});
-    await refreshEditor(id);
-    $('save-state').textContent = '저장했습니다. 사이트에 반영되었습니다.';
-  } catch (error) {
-    $('save-state').textContent = error.message;
-  } finally { busy(false); }
-};
-$('remove').onclick = async () => {
-  if (!confirm('이 항목의 유튜브 링크 등록을 해제하시겠습니까?')) return;
-  const id = $('slot').value;
-  busy(true);
-  try {
-    await api('/api/slot/' + id,'DELETE',{revision:slots.find(s=>s.id===id).revision});
-    await refreshEditor(id);
-    $('save-state').textContent = '유튜브 링크 등록을 해제했습니다.';
-  } catch (error) { $('save-state').textContent = error.message; }
-  finally { busy(false); }
-};
 async function start() {
-  if (admin) {
-    $('home').hidden = true; $('admin').hidden = false;
-    try {
-      const session = await api('/api/session');
-      if (!session.owner) {
-        $('admin-state').textContent = session.configured ? '영상 관리에 로그인해 주세요.' : '관리자 로그인 설정을 준비하고 있습니다.';
-        $('login-form').hidden = !session.configured;
-        return;
-      }
-      $('login-form').hidden = true;
-      await refreshEditor();
-      $('editor').hidden = false;
-      $('admin-state').textContent = '참가팀 영상 30개 · 전체 영상 1개 · Shorts 5개 — 모두 유튜브 링크로 등록합니다.';
-      $('slot').onchange = () => {fillEditor(); $('save-state').textContent='';};
-    } catch (error) { $('admin-state').textContent = '관리 화면을 불러오지 못했습니다. 다시 접속해 주세요.'; }
-    return;
-  }
   for (let i=0;i<5;i++) {
     const button = create('button');
     const photo = create('img');
@@ -150,19 +67,12 @@ async function start() {
   $('filter').onchange = render; $('search').oninput = render;
   $('expand').onclick = () => {expanded = !expanded; render();};
   render();
-  try { slots = await api('/api/videos'); render(); }
+  try {
+    const response = await fetch('/videos.json', {cache:'no-store'});
+    if (!response.ok) throw Error('영상 목록을 불러올 수 없습니다.');
+    slots = parseVideos(await response.json());
+    render();
+  }
   catch { $('load-state').textContent = '영상 목록을 불러오지 못했습니다. 페이지를 새로고침해 주세요.'; }
 }
-$('login-form').onsubmit = async event => {
-  event.preventDefault();
-  const button = $('login-form').querySelector('button'); button.disabled = true;
-  $('login-state').textContent = '로그인 중입니다.';
-  try { await api('/api/login','POST',{password:$('password').value}); $('password').value = ''; await start(); }
-  catch(error) { $('login-state').textContent = error.message; }
-  finally { button.disabled = false; }
-};
-$('logout').onclick = async () => {
-  try { await api('/api/logout','POST',{}); location.reload(); }
-  catch(error) { $('save-state').textContent = error.message; }
-};
 start();
