@@ -65,6 +65,7 @@ function renderLive(settings) {
     ? '생방송 중 · 생방송 보기 (YouTube 새 창)'
     : '생방송 보기 (YouTube 새 창)');
   $('live-status').hidden = !settings.isLive;
+  $('live-cta').hidden = !settings.isLive;
 }
 async function refreshLive() {
   try {
@@ -72,7 +73,7 @@ async function refreshLive() {
     if (!response.ok) throw Error('생방송 상태를 불러올 수 없습니다.');
     renderLive(parseLive(await response.json()));
   } catch {
-    // 상태를 확인할 수 없으면 링크를 유지하고 생방송 중 표시는 끕니다.
+    // 방송 중임을 확인할 수 없으면 생방송 버튼 전체를 숨깁니다.
     renderLive({url:$('live-button').href, isLive:false});
   }
 }
