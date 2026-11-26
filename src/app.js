@@ -1,4 +1,5 @@
 import { slots as defaultSlots, parseVideos } from './festival.js';
+import { parseLive } from './live.js';
 const $ = id => document.getElementById(id);
 let slots = defaultSlots, expanded = false;
 const create = (tag, cls, text) => {
@@ -56,7 +57,29 @@ function render() {
   $('full-play').hidden = !full.youtube;
   $('full-play').onclick = () => play(full);
 }
+function renderLive(settings) {
+  const button = $('live-button');
+  button.href = settings.url;
+  button.classList.toggle('is-live', settings.isLive);
+  button.setAttribute('aria-label', settings.isLive
+    ? '생방송 중 · 생방송 보기 (YouTube 새 창)'
+    : '생방송 보기 (YouTube 새 창)');
+  $('live-status').hidden = !settings.isLive;
+}
+async function refreshLive() {
+  try {
+    const response = await fetch('/live.json', {cache:'no-store'});
+    if (!response.ok) throw Error('생방송 상태를 불러올 수 없습니다.');
+    renderLive(parseLive(await response.json()));
+  } catch {
+    // 상태를 확인할 수 없으면 링크를 유지하고 생방송 중 표시는 끕니다.
+    renderLive({url:$('live-button').href, isLive:false});
+  }
+}
 async function start() {
+  refreshLive();
+  setInterval(() => { if (!document.hidden) refreshLive(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLive(); });
   for (let i=0;i<5;i++) {
     const button = create('button');
     const photo = create('img');
