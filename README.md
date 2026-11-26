@@ -1,14 +1,37 @@
-# 38th Grace Choir Contest — 관리 페이지 없는 버전
+# 38th Grace Choir Contest — 생방송 버튼 · 관리 페이지 없는 버전
 
 제38회 은혜성가제 홈페이지입니다.
 
-- **2026년 12월 13일 주일 오후 2시 (미국 서부시간)**
+- **2026년 12월 13일 주일 오후 2시 30분 (미국 서부시간)**
 - 은혜한인교회 비전센터 본당
 - 150 S. Brookhurst Rd., Fullerton, CA 92833
 - 참가팀 30개 + 전체 영상 1개 + Shorts 5개
 - 사진 5장과 왼쪽 상단·하단 교회 로고
 
 홈페이지의 오른쪽 하단 ‘영상 관리’ 버튼, 관리 페이지, 관리자 로그인 기능을 제거했습니다. 이전 `/admin` 주소는 홈페이지로 돌아갑니다. 유튜브 링크는 저장소의 **videos.json** 파일에 입력합니다. 비밀번호나 별도 저장소 설정은 필요하지 않습니다.
+
+## 생방송 버튼과 깜박임 설정
+
+행사 날짜·시간 바로 아래에 빨간색 **생방송 보기** 버튼이 있습니다. 버튼을 누르면 아래 유튜브 생방송 주소가 새 창에서 열립니다.
+
+**https://www.youtube.com/GKCTV/live**
+
+GitHub에서 **live.json**을 열어 아래 두 항목을 수정할 수 있습니다.
+
+```json
+{
+  "url": "https://www.youtube.com/GKCTV/live",
+  "isLive": false
+}
+```
+
+- `url`: 생방송 버튼에 연결할 유튜브 주소입니다.
+- `isLive: false`: 평소 상태입니다. 버튼은 빨간색으로 표시되고 깜박이지 않습니다.
+- `isLive: true`: 방송 중 상태입니다. 버튼에 **생방송 중**이 표시되고 빨간 배경이 부드럽게 깜박입니다.
+
+**방송 시작 시 `false`를 `true`로 바꾸고 저장하며, 방송 종료 후 다시 `false`로 바꿔 주세요.** `true`와 `false`에는 따옴표를 넣지 않습니다. 연결된 Vercel 배포가 완료되면 반영됩니다. 이미 열어 둔 홈페이지도 1분 간격으로 설정을 확인합니다.
+
+유튜브의 실제 방송 여부를 자동 감지하는 기능은 아닙니다. 날짜가 되었다고 자동으로 방송 중이라고 표시하지 않습니다. 기기에서 ‘동작 줄이기’를 사용하면 깜박임 대신 빨간 버튼과 **생방송 중** 문구로 표시합니다. 영상 관리 페이지는 계속 없는 상태입니다.
 
 ## 유튜브 링크 등록하기
 
@@ -50,7 +73,9 @@
 3. **Add file → Upload files**에서 압축을 푼 내용물 전체를 올립니다.
 4. **Commit changes**를 눌러 저장합니다.
 
-기존 파일과 경로가 일치하도록 올려 주세요. 특히 `src`, `lib`, `api`, `scripts`, `vercel.json`, `package.json`, `package-lock.json`, `videos.json`이 함께 업데이트되어야 합니다. `api/router.js`, `lib/auth.js`, `lib/store.js`는 이전 관리 기능이 남지 않게 교체하는 호환 파일입니다.
+이미 `videos.json`에 영상 링크를 입력하셨다면, 해당 파일은 기존 것을 유지하세요. 이번 변경은 생방송 버튼에만 적용되며 기존 영상 링크를 다시 입력할 필요가 없습니다.
+
+기존 파일과 경로가 일치하도록 올려 주세요. 특히 `src`, `lib`, `api`, `scripts`, `vercel.json`, `package.json`, `package-lock.json`, `videos.json`, `live.json`이 함께 업데이트되어야 합니다. `api/router.js`, `lib/auth.js`, `lib/store.js`는 이전 관리 기능이 남지 않게 교체하는 호환 파일입니다.
 
 ## Vercel 배포 설정
 
@@ -71,10 +96,12 @@ npm run build
 npm run dev
 ```
 
-실행 후 `http://localhost:3000`에서 확인합니다. `videos.json`을 수정한 뒤 `npm run build`를 실행하면 미리보기에도 반영됩니다.
+실행 후 `http://localhost:3000`에서 확인합니다. `videos.json` 또는 `live.json`을 수정한 뒤 `npm run build`를 실행하면 미리보기에도 반영됩니다.
 
 ## 파일 위치
 
+- `live.json`: 생방송 주소와 방송 중 표시 설정
+- `lib/live.js`: 생방송 설정 검증
 - `videos.json`: 36개 영상의 유튜브 주소, 참가팀 이름, 찬양곡
 - `src/page.html`: 디자인과 행사 안내
 - `src/app.js`: 영상 재생, 검색, 갤러리
